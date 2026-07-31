@@ -1,0 +1,23 @@
+{
+  "name": "strategic-honesty-api",
+  "version": "0.1.0",
+  "description": "Strategic Honesty API backend",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test",
+    "lint": "eslint ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5"
+  }
+}
