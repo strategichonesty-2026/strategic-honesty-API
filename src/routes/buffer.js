@@ -14,7 +14,7 @@ router.get('/channels', internalAuth, async (req, res) => {
 });
 
 router.post('/post', internalAuth, async (req, res) => {
-  const { channelId, text, mediaUrl, mediaType, scheduledAt } = req.body;
+  const { channelId, text, mediaUrl, mediaType, scheduledAt, service, postType, saveToDraft } = req.body;
 
   if (!channelId) return res.status(400).json({ error: 'Missing "channelId" field' });
   if (!text) return res.status(400).json({ error: 'Missing "text" field' });
@@ -32,6 +32,9 @@ router.post('/post', internalAuth, async (req, res) => {
       mediaUrl,
       mediaType,
       scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
+      service,
+      postType,
+      saveToDraft,
     });
     res.status(201).json({ post });
   } catch (err) {

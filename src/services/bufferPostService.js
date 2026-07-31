@@ -18,7 +18,9 @@ async function listChannels() {
 // mediaType must be 'image' or 'video' when mediaUrl is given — matches
 // Buffer's `assets` entry shape (each entry is exactly one of
 // image/video/document/link, referenced by URL, no separate upload step).
-async function createPost({ channelId, text, mediaUrl, mediaType, scheduledAt }) {
+// postType ('post' | 'story' | 'reel') is required by Buffer for Facebook
+// specifically — defaults to 'post' since that's the common case.
+async function createPost({ channelId, text, mediaUrl, mediaType, scheduledAt, postType, saveToDraft, service }) {
   const client = createBufferClient();
 
   const input = {
@@ -29,6 +31,8 @@ async function createPost({ channelId, text, mediaUrl, mediaType, scheduledAt })
       ? { mode: 'customScheduled', dueAt: scheduledAt }
       : { mode: 'addToQueue' }),
     ...(mediaUrl ? { assets: [{ [mediaType]: { url: mediaUrl } }] } : {}),
+    ...(service === 'facebook' ? { metadata: { facebook: { type: postType || 'post' } } } : {}),
+    ...(saveToDraft ? { saveToDraft: true } : {}),
   };
 
   const data = await client.request(CREATE_POST, { input });

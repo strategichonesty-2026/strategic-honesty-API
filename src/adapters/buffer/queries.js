@@ -11,7 +11,7 @@ const GET_ORGANIZATIONS = gql`
 `;
 
 const GET_CHANNELS = gql`
-  query GetChannels($organizationId: String!) {
+  query GetChannels($organizationId: OrganizationId!) {
     channels(input: { organizationId: $organizationId }) {
       id
       name

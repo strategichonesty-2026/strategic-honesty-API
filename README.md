@@ -95,9 +95,13 @@ routes **require** `X-Internal-Token`:
 - `GET /buffer/channels` — lists connected Buffer channels (`id`, `name`,
   `service`) — look up the `channelId` here before posting.
 - `POST /buffer/post` — JSON body `{channelId, text, mediaUrl, mediaType,
-  scheduledAt}`. `mediaType` must be `"image"` or `"video"` when `mediaUrl`
-  is given. Omit `scheduledAt` to add to Buffer's queue instead of a fixed
-  time.
+  scheduledAt, service, postType, saveToDraft}`. `mediaType` must be
+  `"image"` or `"video"` when `mediaUrl` is given. Omit `scheduledAt` to
+  add to Buffer's queue instead of a fixed time. Pass `service: "facebook"`
+  for Facebook channels — Buffer requires an explicit post `type`
+  there (`postType`: `"post"` | `"story"` | `"reel"`, defaults to
+  `"post"`). Pass `saveToDraft: true` to create a draft instead of an
+  actual scheduled/queued post — useful for testing.
 
 ## Engineering standard
 
