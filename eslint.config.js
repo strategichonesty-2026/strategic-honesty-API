@@ -16,6 +16,9 @@ module.exports = [
         URL: 'readonly',
         FormData: 'readonly',
         Blob: 'readonly',
+        Buffer: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
       },
     },
     rules: {

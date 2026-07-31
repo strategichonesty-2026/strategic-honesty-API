@@ -15,10 +15,13 @@
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "axios": "^1.19.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.6.1",
     "google-auth-library": "^10.9.1",
     "googleapis": "^173.0.0",
+    "helmet": "^8.3.0",
     "multer": "^2.2.0"
   },
   "devDependencies": {

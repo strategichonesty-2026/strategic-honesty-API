@@ -14,11 +14,12 @@ function createOAuth2Client() {
   );
 }
 
-function getAuthUrl(oauth2Client) {
+function getAuthUrl(oauth2Client, state) {
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
     scope: YOUTUBE_UPLOAD_SCOPES,
+    ...(state ? { state } : {}),
   });
 }
 

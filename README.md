@@ -53,12 +53,34 @@ Uses the official `googleapis` and `google-auth-library` SDKs (see
 client with the YouTube Data API v3 enabled; set `GOOGLE_CLIENT_ID`,
 `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` in `.env`.
 
-- `GET /youtube/connect` — redirects to the Google consent screen
-- `GET /youtube/oauth2callback` — OAuth redirect target; stores the
-  connected account's tokens
-- `GET /youtube/accounts` — lists connected YouTube accounts
-- `POST /youtube/upload` — `multipart/form-data` with `googleUserId`,
-  `title`, optional `description`/`privacyStatus`, and a `video` file field
+This service is designed to be called by another application's backend
+(e.g. a scheduler) rather than used standalone. Two routes are reachable by
+an end user's browser (no auth, rate-limited); the rest require a shared
+secret:
+
+- `GET /youtube/connect?state=&schedulerUserId=` — redirects to the Google
+  consent screen. `state`/`schedulerUserId` are opaque values from the
+  calling app, round-tripped through Google's own `state` param and handed
+  back on callback — this service does not interpret them.
+- `GET /youtube/oauth2callback` — OAuth redirect target. Stores the
+  connected account's tokens, then redirects the browser to
+  `SCHEDULER_CALLBACK_URL` (fixed by env var, not client-supplied — avoids
+  open redirect) with `?auth=success&platform=youtube&state=&googleUserId=
+  &channelTitle=` (or `auth=error&reason=`).
+- `GET /youtube/accounts` — lists connected accounts. **Requires**
+  `X-Internal-Token` header matching `INTERNAL_SERVICE_TOKEN`.
+- `POST /youtube/upload` — **requires** `X-Internal-Token`.
+  `multipart/form-data` with `googleUserId`, `title`, optional
+  `description`/`tags` (comma-separated)/`privacyStatus`, and a `video`
+  file field.
+- `POST /youtube/upload-from-url` — **requires** `X-Internal-Token`. JSON
+  body `{googleUserId, videoUrl, title, description, tags, privacyStatus}`
+  — downloads the video server-side (streamed, with a stall/size guard)
+  and uploads it, for callers that only have a media URL rather than a
+  local file.
+
+Set `INTERNAL_SERVICE_TOKEN` to a shared secret the calling service also
+holds, and `SCHEDULER_CALLBACK_URL` to that service's OAuth callback URL.
 
 ## Engineering standard
 

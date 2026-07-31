@@ -1,6 +1,27 @@
+const fs = require('fs');
 const { prisma } = require('../db/prismaClient');
 const authClient = require('../adapters/youtube/authClient');
 const uploader = require('../adapters/youtube/uploader');
+const { downloadTemp } = require('../adapters/youtube/downloadTemp');
+
+const QUOTA_ERROR_MESSAGES = {
+  quotaExceeded: 'YouTube API daily quota exceeded for this project — try again after the quota resets (~midnight Pacific time), or request a quota increase in Google Cloud Console.',
+  uploadLimitExceeded: 'This YouTube channel has hit its upload limit — Google restricts how many videos/how much data a channel can upload per day.',
+  dailyLimitExceeded: 'YouTube API daily limit exceeded for this project.',
+};
+
+// Maps a googleapis error to a clear, user-facing message when it recognizes
+// the failure reason; otherwise returns the original error message untouched.
+function classifyYoutubeError(err) {
+  const reason = err.errors?.[0]?.reason || err.response?.data?.error?.errors?.[0]?.reason;
+  if (reason && QUOTA_ERROR_MESSAGES[reason]) {
+    const classified = new Error(QUOTA_ERROR_MESSAGES[reason]);
+    classified.code = 'YOUTUBE_' + reason.toUpperCase();
+    classified.cause = err;
+    return classified;
+  }
+  return err;
+}
 
 function toPublicAccount(credential) {
   return {
@@ -13,9 +34,9 @@ function toPublicAccount(credential) {
   };
 }
 
-function getConnectUrl() {
+function getConnectUrl(state) {
   const client = authClient.createOAuth2Client();
-  return authClient.getAuthUrl(client);
+  return authClient.getAuthUrl(client, state);
 }
 
 async function handleOAuthCallback(code) {
@@ -93,15 +114,42 @@ async function getAuthorizedClient(googleUserId) {
   return client;
 }
 
-async function uploadVideoForAccount(googleUserId, videoInput) {
-  const client = await getAuthorizedClient(googleUserId);
-  if (!client) {
-    const error = new Error(`No connected YouTube account for googleUserId "${googleUserId}"`);
-    error.code = 'ACCOUNT_NOT_CONNECTED';
-    throw error;
-  }
+function requireAuthorizedClient(googleUserId) {
+  return getAuthorizedClient(googleUserId).then((client) => {
+    if (!client) {
+      const error = new Error(`No connected YouTube account for googleUserId "${googleUserId}"`);
+      error.code = 'ACCOUNT_NOT_CONNECTED';
+      throw error;
+    }
+    return client;
+  });
+}
 
-  return uploader.uploadVideo(client, videoInput);
+async function uploadVideoForAccount(googleUserId, videoInput) {
+  const client = await requireAuthorizedClient(googleUserId);
+
+  try {
+    return await uploader.uploadVideo(client, videoInput);
+  } catch (err) {
+    throw classifyYoutubeError(err);
+  }
+}
+
+// Downloads a video from a URL to a temp file, uploads it, and always cleans
+// up the temp file afterward — used by the service-to-service upload-from-url
+// route, where the caller only has a media URL (e.g. from Media Studio),
+// not a local file. Checks the account is connected BEFORE downloading, so a
+// disconnected/unknown account fails fast instead of wasting a full download.
+async function uploadVideoFromUrlForAccount(googleUserId, { videoUrl, title, description, tags, privacyStatus }) {
+  const client = await requireAuthorizedClient(googleUserId);
+  const { path: filePath, mimeType } = await downloadTemp(videoUrl);
+  try {
+    return await uploader.uploadVideo(client, { filePath, mimeType, title, description, tags, privacyStatus });
+  } catch (err) {
+    throw classifyYoutubeError(err);
+  } finally {
+    fs.unlink(filePath, () => {});
+  }
 }
 
 module.exports = {
@@ -110,4 +158,5 @@ module.exports = {
   listConnectedAccounts,
   getAuthorizedClient,
   uploadVideoForAccount,
+  uploadVideoFromUrlForAccount,
 };

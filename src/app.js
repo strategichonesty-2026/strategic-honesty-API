@@ -1,9 +1,11 @@
 const express = require('express');
+const helmet = require('helmet');
 const youtubeRouter = require('./routes/youtube');
 
 function createApp() {
   const app = express();
 
+  app.use(helmet());
   app.use(express.json());
 
   app.get('/health', (req, res) => {
