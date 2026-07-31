@@ -68,6 +68,7 @@ router.get('/oauth2callback', oauthRateLimit, async (req, res) => {
     if (account.channelTitle) url.searchParams.set('channelTitle', account.channelTitle);
     res.redirect(url.toString());
   } catch (err) {
+    console.error('[youtube] oauth2callback failed:', err);
     redirectWithError(err.message || 'oauth_failed');
   }
 });

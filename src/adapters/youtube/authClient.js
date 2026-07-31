@@ -3,6 +3,9 @@ const { google } = require('googleapis');
 
 const YOUTUBE_UPLOAD_SCOPES = [
   'https://www.googleapis.com/auth/youtube.upload',
+  // youtube.upload alone only grants permission to upload — reading the
+  // connected channel's id/title (channels.list) needs read access too.
+  'https://www.googleapis.com/auth/youtube.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
 ];
 
