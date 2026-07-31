@@ -119,3 +119,42 @@ real OAuth tokens and is reachable over the network). Added:
   `src/adapters/youtube/downloadTemp.js` for the new
   `POST /youtube/upload-from-url` route, which lets a caller pass a media
   URL instead of a local file.
+
+---
+
+## Buffer Publishing (Instagram, Threads, X, Facebook, TikTok, Facebook/Instagram Reels)
+
+**Date:** 2026-07-31
+
+### Repos/libraries evaluated
+
+| Candidate | License | Stars | Maintenance | Decision |
+|-----------|---------|-------|-------------|----------|
+| Buffer's official GraphQL API (`api.buffer.com`) | Vendor SaaS, N/A | N/A | Active — current API, legacy REST retiring Feb 2027 | **Accepted** — official platform, already used manually by the business today |
+| Official Buffer Node/JS SDK | — | — | — | **Doesn't exist** — no official SDK for the new GraphQL API |
+| Community "Buffer API" wrapper repos (checked GitHub: `buffer-cli`, `linkedin-buffer-scheduler`, `buffer-insight-engine`, etc.) | Mixed | 0–1 stars each | Hobby-level, largely unmaintained | Rejected — too small/unproven, no benefit over calling the API directly |
+| `graphql-request` (npm) | MIT | 6.1k | Active — pushed within the last few months | **Accepted** — thin, minimal, well-adopted generic GraphQL client; avoids hand-rolling raw `fetch` + query-string boilerplate |
+
+### Why accepted/rejected
+
+The business already has a working Buffer account used manually (CSV export → upload) for several platforms, and was doing fully manual uploads for others (Instagram, Instagram Reels, Threads, Twitter, Facebook Reels) specifically because those platforms' own native APIs (Meta's Graph API, in particular) require App Review and/or Business Verification — the exact friction that motivated this whole project. Buffer's GraphQL API has official partnerships with Instagram, LinkedIn, Threads, Facebook, Bluesky, YouTube, TikTok, and X, and publishes with a simple personal Bearer API key (no OAuth/app-review flow needed for a single-account, single-tenant use case like this one). One integration closes both gaps — no CSV step, no Meta review — with far less code and maintenance than building N separate native integrations.
+
+No suitable dedicated SDK exists for Buffer's new API, so a generic, popular, actively-maintained GraphQL client (`graphql-request`) was used instead of writing raw HTTP calls by hand — consistent with "reuse a well-maintained library over custom code" even where no vendor-specific option exists.
+
+### License compatibility
+
+MIT (`graphql-request`). No copyleft/GPL/AGPL concerns. Buffer's API itself is a vendor service, not a dependency with a license to evaluate.
+
+### Maintenance status
+
+`graphql-request` shows commits within the last few months, 6.1k stars, actively maintained by the same maintainers as `graphql-tag`/Prisma-adjacent tooling. Buffer's GraphQL API is its current, forward path (the legacy REST API is being sunset Feb 2027 — the GraphQL API was deliberately chosen over it for that reason).
+
+### Security considerations
+
+- The Buffer API key is a personal credential with full posting access to the connected Buffer account — stored only in `BUFFER_API_KEY`, never logged, never returned by any endpoint.
+- Media is referenced by public URL (matches the existing R2-hosted asset pattern already used throughout the project) — no file ever passes through this service for Buffer posts, unlike the YouTube upload path.
+- `/buffer/*` routes require the same `X-Internal-Token` internal-auth middleware as the YouTube routes — not reachable by an unauthenticated caller.
+
+### Final architecture decision
+
+Strategic Honesty business logic (post creation via `POST /buffer/post`, channel lookup via `GET /buffer/channels`) → `src/adapters/buffer/` (thin `graphql-request` client + query/mutation strings) → Buffer's GraphQL API. No database persistence needed on this side — Buffer itself owns scheduling/queue state once a post is created.

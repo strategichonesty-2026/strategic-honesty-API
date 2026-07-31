@@ -21,6 +21,7 @@
     "express-rate-limit": "^8.6.1",
     "google-auth-library": "^10.9.1",
     "googleapis": "^173.0.0",
+    "graphql-request": "^7.4.0",
     "helmet": "^8.3.0",
     "multer": "^2.2.0"
   },

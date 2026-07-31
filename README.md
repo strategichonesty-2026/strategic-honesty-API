@@ -39,6 +39,7 @@ src/
   app.js                # Express app factory
   index.js              # server entry point
   adapters/youtube/      # thin wrappers around google-auth-library / googleapis
+  adapters/buffer/        # thin wrapper around Buffer's GraphQL API (graphql-request)
   services/              # business logic (credential persistence, upload orchestration)
   routes/                # Express route handlers
   db/prismaClient.js     # Prisma client singleton
@@ -81,6 +82,22 @@ secret:
 
 Set `INTERNAL_SERVICE_TOKEN` to a shared secret the calling service also
 holds, and `SCHEDULER_CALLBACK_URL` to that service's OAuth callback URL.
+
+## Buffer publishing
+
+Uses Buffer's GraphQL API (see [TECH_DECISION.md](./TECH_DECISION.md)) via
+a personal API key — posts/schedules to whatever channels are already
+connected in that Buffer account (Instagram, Threads, X, Facebook, TikTok,
+etc.), no OAuth flow needed for this single-account use case. Set
+`BUFFER_API_KEY` (generate at buffer.com/settings/api) in `.env`. Both
+routes **require** `X-Internal-Token`:
+
+- `GET /buffer/channels` — lists connected Buffer channels (`id`, `name`,
+  `service`) — look up the `channelId` here before posting.
+- `POST /buffer/post` — JSON body `{channelId, text, mediaUrl, mediaType,
+  scheduledAt}`. `mediaType` must be `"image"` or `"video"` when `mediaUrl`
+  is given. Omit `scheduledAt` to add to Buffer's queue instead of a fixed
+  time.
 
 ## Engineering standard
 

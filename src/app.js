@@ -1,6 +1,7 @@
 const express = require('express');
 const helmet = require('helmet');
 const youtubeRouter = require('./routes/youtube');
+const bufferRouter = require('./routes/buffer');
 
 function createApp() {
   const app = express();
@@ -13,6 +14,7 @@ function createApp() {
   });
 
   app.use('/youtube', youtubeRouter);
+  app.use('/buffer', bufferRouter);
 
   return app;
 }
