@@ -18,8 +18,13 @@ async function listChannels() {
 // mediaType must be 'image' or 'video' when mediaUrl is given — matches
 // Buffer's `assets` entry shape (each entry is exactly one of
 // image/video/document/link, referenced by URL, no separate upload step).
-// postType ('post' | 'story' | 'reel') is required by Buffer for Facebook
-// specifically — defaults to 'post' since that's the common case.
+//
+// postType ('post' | 'story' | 'reel' | ...) is required by Buffer for
+// Facebook and Instagram specifically — a Reel is the SAME channel
+// connection as a regular post, just this one flag set differently.
+// Defaults to 'post' since that's the common case.
+const SERVICES_REQUIRING_POST_TYPE = ['facebook', 'instagram'];
+
 async function createPost({ channelId, text, mediaUrl, mediaType, scheduledAt, postType, saveToDraft, service }) {
   const client = createBufferClient();
 
@@ -31,7 +36,9 @@ async function createPost({ channelId, text, mediaUrl, mediaType, scheduledAt, p
       ? { mode: 'customScheduled', dueAt: scheduledAt }
       : { mode: 'addToQueue' }),
     ...(mediaUrl ? { assets: [{ [mediaType]: { url: mediaUrl } }] } : {}),
-    ...(service === 'facebook' ? { metadata: { facebook: { type: postType || 'post' } } } : {}),
+    ...(SERVICES_REQUIRING_POST_TYPE.includes(service)
+      ? { metadata: { [service]: { type: postType || 'post' } } }
+      : {}),
     ...(saveToDraft ? { saveToDraft: true } : {}),
   };
 
