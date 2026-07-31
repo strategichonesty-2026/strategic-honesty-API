@@ -130,6 +130,7 @@ router.post('/upload-from-url', internalAuth, async (req, res) => {
     });
     res.status(201).json({ video });
   } catch (err) {
+    console.error('[youtube] upload-from-url failed:', err);
     const status = err.code === 'ACCOUNT_NOT_CONNECTED' ? 404 : 502;
     res.status(status).json({ error: 'Failed to upload video to YouTube', details: err.message });
   }
