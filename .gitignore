@@ -5,3 +5,7 @@ node_modules/
 *.log
 .DS_Store
 coverage/
+
+/src/generated/prisma
+/prisma/*.db
+/prisma/*.db-journal

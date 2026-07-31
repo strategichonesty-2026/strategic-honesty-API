@@ -1,6 +1,6 @@
 module.exports = [
   {
-    ignores: ['node_modules/**'],
+    ignores: ['node_modules/**', 'src/generated/**'],
   },
   {
     languageOptions: {
@@ -13,6 +13,9 @@ module.exports = [
         console: 'readonly',
         fetch: 'readonly',
         __dirname: 'readonly',
+        URL: 'readonly',
+        FormData: 'readonly',
+        Blob: 'readonly',
       },
     },
     rules: {
