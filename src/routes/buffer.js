@@ -35,6 +35,7 @@ router.post('/post', internalAuth, async (req, res) => {
       service,
       postType,
       saveToDraft,
+      publicBaseUrl: `${req.protocol}://${req.get('host')}`,
     });
     res.status(201).json({ post });
   } catch (err) {

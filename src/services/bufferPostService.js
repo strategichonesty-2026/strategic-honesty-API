@@ -1,5 +1,11 @@
 const { createBufferClient } = require('../adapters/buffer/client');
 const { GET_ORGANIZATIONS, GET_CHANNELS, CREATE_POST } = require('../adapters/buffer/queries');
+const { resizeUrlIfNeeded } = require('../adapters/imageResize');
+const { trimVideoUrlIfNeeded } = require('../adapters/videoTrim');
+
+// TikTok specifically should stay short — per user preference, not a
+// platform-enforced hard limit (TikTok itself allows much longer video).
+const TIKTOK_MAX_SECONDS = 60;
 
 async function getOrganizationId(client) {
   const data = await client.request(GET_ORGANIZATIONS);
@@ -25,8 +31,17 @@ async function listChannels() {
 // Defaults to 'post' since that's the common case.
 const SERVICES_REQUIRING_POST_TYPE = ['facebook', 'instagram'];
 
-async function createPost({ channelId, text, mediaUrl, mediaType, scheduledAt, postType, saveToDraft, service }) {
+async function createPost({ channelId, text, mediaUrl, mediaType, scheduledAt, postType, saveToDraft, service, publicBaseUrl }) {
   const client = createBufferClient();
+
+  let finalMediaUrl = mediaUrl;
+  if (mediaUrl && publicBaseUrl) {
+    if (mediaType === 'image') {
+      ({ url: finalMediaUrl } = await resizeUrlIfNeeded(mediaUrl, publicBaseUrl));
+    } else if (mediaType === 'video' && service === 'tiktok') {
+      ({ url: finalMediaUrl } = await trimVideoUrlIfNeeded(mediaUrl, TIKTOK_MAX_SECONDS, publicBaseUrl));
+    }
+  }
 
   const input = {
     text,
@@ -35,7 +50,7 @@ async function createPost({ channelId, text, mediaUrl, mediaType, scheduledAt, p
     ...(scheduledAt
       ? { mode: 'customScheduled', dueAt: scheduledAt }
       : { mode: 'addToQueue' }),
-    ...(mediaUrl ? { assets: [{ [mediaType]: { url: mediaUrl } }] } : {}),
+    ...(mediaUrl ? { assets: [{ [mediaType]: { url: finalMediaUrl } }] } : {}),
     ...(SERVICES_REQUIRING_POST_TYPE.includes(service)
       ? { metadata: { [service]: { type: postType || 'post' } } }
       : {}),
