@@ -53,4 +53,25 @@ const GET_POST = gql`
   }
 `;
 
-module.exports = { GET_ORGANIZATIONS, GET_CHANNELS, CREATE_POST, GET_POST };
+const LIST_POSTS = gql`
+  query ListPosts($organizationId: OrganizationId!, $first: Int, $filter: PostsFiltersInput) {
+    posts(first: $first, input: { organizationId: $organizationId, filter: $filter }) {
+      edges {
+        node {
+          id
+          text
+          dueAt
+          status
+          externalLink
+          channel {
+            id
+            name
+            service
+          }
+        }
+      }
+    }
+  }
+`;
+
+module.exports = { GET_ORGANIZATIONS, GET_CHANNELS, CREATE_POST, GET_POST, LIST_POSTS };

@@ -13,6 +13,23 @@ router.get('/channels', internalAuth, async (req, res) => {
   }
 });
 
+router.get('/posts', internalAuth, async (req, res) => {
+  const { startDate, endDate } = req.query;
+  if (startDate && isNaN(new Date(startDate).getTime())) {
+    return res.status(400).json({ error: 'Invalid "startDate"' });
+  }
+  if (endDate && isNaN(new Date(endDate).getTime())) {
+    return res.status(400).json({ error: 'Invalid "endDate"' });
+  }
+
+  try {
+    const posts = await bufferPostService.listPosts({ startDate, endDate });
+    res.json({ posts });
+  } catch (err) {
+    res.status(502).json({ error: 'Failed to list Buffer posts', details: err.message });
+  }
+});
+
 router.get('/post/:id', internalAuth, async (req, res) => {
   try {
     const post = await bufferPostService.getPostStatus(req.params.id);

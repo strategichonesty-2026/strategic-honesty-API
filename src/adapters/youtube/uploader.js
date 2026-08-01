@@ -44,4 +44,23 @@ async function getVideoStatus(oauth2Client, videoId) {
   return data.items && data.items[0];
 }
 
-module.exports = { uploadVideo, updatePrivacy, getVideoStatus };
+async function listRecentUploads(oauth2Client, { maxResults = 25 } = {}) {
+  const youtube = google.youtube({ auth: oauth2Client, version: 'v3' });
+
+  const { data: channelData } = await youtube.channels.list({
+    part: ['contentDetails'],
+    mine: true,
+  });
+  const uploadsPlaylistId = channelData.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+  if (!uploadsPlaylistId) return [];
+
+  const { data } = await youtube.playlistItems.list({
+    part: ['snippet', 'contentDetails'],
+    playlistId: uploadsPlaylistId,
+    maxResults,
+  });
+
+  return data.items || [];
+}
+
+module.exports = { uploadVideo, updatePrivacy, getVideoStatus, listRecentUploads };

@@ -103,6 +103,27 @@ test('POST /buffer/post with valid input but no BUFFER_API_KEY configured return
   });
 });
 
+test('GET /buffer/posts without an internal token returns 401', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/buffer/posts`);
+    assert.equal(res.status, 401);
+  });
+});
+
+test('GET /buffer/posts with an invalid startDate returns 400', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/buffer/posts?startDate=not-a-date`, { headers: AUTH_HEADERS });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('GET /buffer/posts with an invalid endDate returns 400', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/buffer/posts?endDate=not-a-date`, { headers: AUTH_HEADERS });
+    assert.equal(res.status, 400);
+  });
+});
+
 test('GET /buffer/post/:id without an internal token returns 401', async () => {
   await withServer(async (base) => {
     const res = await fetch(`${base}/buffer/post/abc123`);

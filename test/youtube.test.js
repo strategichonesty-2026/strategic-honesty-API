@@ -205,6 +205,42 @@ test('PATCH /youtube/videos/:videoId/privacy for an unconnected account returns 
   });
 });
 
+test('GET /youtube/videos without an internal token returns 401', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/youtube/videos`);
+    assert.equal(res.status, 401);
+  });
+});
+
+test('GET /youtube/videos without googleUserId returns 400', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/youtube/videos`, { headers: AUTH_HEADERS });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('GET /youtube/videos for an unconnected account returns 404', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/youtube/videos?googleUserId=no-such-user`, { headers: AUTH_HEADERS });
+    assert.equal(res.status, 404);
+  });
+});
+
+test('GET /youtube/videos does not collide with GET /youtube/videos/:videoId', async () => {
+  await withServer(async (base) => {
+    // Both hit different handlers — the list route 400s on a missing
+    // googleUserId, the single-video route 400s the same way but for a
+    // *different* underlying reason (missing googleUserId query param on
+    // a route that also has a path param). This just confirms neither
+    // route swallows the other's requests silently (e.g. a 404 from
+    // Express itself, meaning neither matched).
+    const listRes = await fetch(`${base}/youtube/videos`, { headers: AUTH_HEADERS });
+    const singleRes = await fetch(`${base}/youtube/videos/abc123`, { headers: AUTH_HEADERS });
+    assert.equal(listRes.status, 400);
+    assert.equal(singleRes.status, 400);
+  });
+});
+
 test('GET /youtube/videos/:videoId without an internal token returns 401', async () => {
   await withServer(async (base) => {
     const res = await fetch(`${base}/youtube/videos/abc123`);

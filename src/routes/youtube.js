@@ -78,6 +78,23 @@ router.get('/accounts', internalAuth, async (req, res) => {
   res.json({ accounts });
 });
 
+router.get('/videos', internalAuth, async (req, res) => {
+  const { googleUserId, maxResults } = req.query;
+  if (!googleUserId) return res.status(400).json({ error: 'Missing "googleUserId" query param' });
+
+  try {
+    const videos = await youtubeAccountService.listRecentVideosForAccount(
+      googleUserId,
+      maxResults ? parseInt(maxResults, 10) : undefined
+    );
+    res.json({ videos });
+  } catch (err) {
+    console.error('[youtube] video list failed:', err);
+    const status = err.code === 'ACCOUNT_NOT_CONNECTED' ? 404 : 502;
+    res.status(status).json({ error: 'Failed to list YouTube videos', details: err.message });
+  }
+});
+
 router.post('/upload', internalAuth, upload.single('video'), async (req, res) => {
   const { googleUserId, title, description, privacyStatus } = req.body;
   const tags = req.body.tags ? req.body.tags.split(',').map((t) => t.trim()).filter(Boolean) : undefined;

@@ -172,6 +172,16 @@ async function getVideoStatusForAccount(googleUserId, videoId) {
   }
 }
 
+async function listRecentVideosForAccount(googleUserId, maxResults) {
+  const client = await requireAuthorizedClient(googleUserId);
+
+  try {
+    return await uploader.listRecentUploads(client, { maxResults });
+  } catch (err) {
+    throw classifyYoutubeError(err);
+  }
+}
+
 module.exports = {
   getConnectUrl,
   handleOAuthCallback,
@@ -181,4 +191,5 @@ module.exports = {
   uploadVideoFromUrlForAccount,
   setVideoPrivacyForAccount,
   getVideoStatusForAccount,
+  listRecentVideosForAccount,
 };

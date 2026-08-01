@@ -1,5 +1,5 @@
 const { createBufferClient } = require('../adapters/buffer/client');
-const { GET_ORGANIZATIONS, GET_CHANNELS, CREATE_POST, GET_POST } = require('../adapters/buffer/queries');
+const { GET_ORGANIZATIONS, GET_CHANNELS, CREATE_POST, GET_POST, LIST_POSTS } = require('../adapters/buffer/queries');
 const { resizeUrlIfNeeded } = require('../adapters/imageResize');
 const { trimVideoUrlIfNeeded, TIKTOK_MAX_SECONDS } = require('../adapters/videoTrim');
 
@@ -71,4 +71,27 @@ async function getPostStatus(postId) {
   return data.post;
 }
 
-module.exports = { listChannels, createPost, getPostStatus };
+// Buffer's dueAt filter field names on PostsFiltersInput aren't confirmed, so
+// this deliberately filters status only server-side and filters the date
+// range client-side — avoids a fragile guess on the critical path.
+async function listPosts({ startDate, endDate } = {}) {
+  const client = createBufferClient();
+  const organizationId = await getOrganizationId(client);
+  const data = await client.request(LIST_POSTS, {
+    organizationId,
+    first: 100,
+    filter: { status: ['scheduled', 'sending', 'sent'] },
+  });
+  const nodes = (data.posts?.edges || []).map((e) => e.node);
+  if (!startDate && !endDate) return nodes;
+
+  const startMs = startDate ? new Date(startDate).getTime() : -Infinity;
+  const endMs = endDate ? new Date(endDate).getTime() : Infinity;
+  return nodes.filter((n) => {
+    if (!n.dueAt) return false;
+    const ms = new Date(n.dueAt).getTime();
+    return ms >= startMs && ms <= endMs;
+  });
+}
+
+module.exports = { listChannels, createPost, getPostStatus, listPosts };
