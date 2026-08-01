@@ -1,11 +1,7 @@
 const { createBufferClient } = require('../adapters/buffer/client');
-const { GET_ORGANIZATIONS, GET_CHANNELS, CREATE_POST } = require('../adapters/buffer/queries');
+const { GET_ORGANIZATIONS, GET_CHANNELS, CREATE_POST, GET_POST } = require('../adapters/buffer/queries');
 const { resizeUrlIfNeeded } = require('../adapters/imageResize');
-const { trimVideoUrlIfNeeded } = require('../adapters/videoTrim');
-
-// TikTok specifically should stay short — per user preference, not a
-// platform-enforced hard limit (TikTok itself allows much longer video).
-const TIKTOK_MAX_SECONDS = 60;
+const { trimVideoUrlIfNeeded, TIKTOK_MAX_SECONDS } = require('../adapters/videoTrim');
 
 async function getOrganizationId(client) {
   const data = await client.request(GET_ORGANIZATIONS);
@@ -69,4 +65,10 @@ async function createPost({ channelId, text, mediaUrl, mediaType, scheduledAt, p
   return result.post;
 }
 
-module.exports = { listChannels, createPost };
+async function getPostStatus(postId) {
+  const client = createBufferClient();
+  const data = await client.request(GET_POST, { id: postId });
+  return data.post;
+}
+
+module.exports = { listChannels, createPost, getPostStatus };

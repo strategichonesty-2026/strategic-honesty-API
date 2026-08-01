@@ -37,4 +37,20 @@ const CREATE_POST = gql`
   }
 `;
 
-module.exports = { GET_ORGANIZATIONS, GET_CHANNELS, CREATE_POST };
+const GET_POST = gql`
+  query GetPost($id: PostId!) {
+    post(input: { id: $id }) {
+      ... on Post {
+        id
+        status
+        sentAt
+        externalLink
+        error {
+          message
+        }
+      }
+    }
+  }
+`;
+
+module.exports = { GET_ORGANIZATIONS, GET_CHANNELS, CREATE_POST, GET_POST };

@@ -10,6 +10,14 @@ const { randomUUID } = require('crypto');
 ffmpeg.setFfmpegPath(ffmpegPath);
 ffmpeg.setFfprobePath(ffprobePath);
 
+// TikTok specifically should stay short — per user preference, not a
+// platform-enforced hard limit (TikTok itself allows much longer video).
+const TIKTOK_MAX_SECONDS = 60;
+
+// Not a resize trigger like the image caps in imageResize.js — a generous
+// net that only catches accidentally-queued raw/uncompressed source files.
+const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
+
 function getDurationSeconds(filePath) {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(filePath, (err, data) => {
@@ -68,4 +76,11 @@ async function trimVideoUrlIfNeeded(videoUrl, maxSeconds, publicBaseUrl) {
   }
 }
 
-module.exports = { getDurationSeconds, trimVideo, trimIfNeeded, trimVideoUrlIfNeeded };
+module.exports = {
+  getDurationSeconds,
+  trimVideo,
+  trimIfNeeded,
+  trimVideoUrlIfNeeded,
+  TIKTOK_MAX_SECONDS,
+  MAX_VIDEO_BYTES,
+};

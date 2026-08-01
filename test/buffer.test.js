@@ -102,3 +102,17 @@ test('POST /buffer/post with valid input but no BUFFER_API_KEY configured return
     assert.equal(res.status, 502);
   });
 });
+
+test('GET /buffer/post/:id without an internal token returns 401', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/buffer/post/abc123`);
+    assert.equal(res.status, 401);
+  });
+});
+
+test('GET /buffer/post/:id with no BUFFER_API_KEY configured returns 502', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/buffer/post/abc123`, { headers: AUTH_HEADERS });
+    assert.equal(res.status, 502);
+  });
+});

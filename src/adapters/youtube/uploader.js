@@ -33,4 +33,15 @@ async function updatePrivacy(oauth2Client, videoId, privacyStatus) {
   return data;
 }
 
-module.exports = { uploadVideo, updatePrivacy };
+async function getVideoStatus(oauth2Client, videoId) {
+  const youtube = google.youtube({ auth: oauth2Client, version: 'v3' });
+
+  const { data } = await youtube.videos.list({
+    part: ['status', 'snippet'],
+    id: [videoId],
+  });
+
+  return data.items && data.items[0];
+}
+
+module.exports = { uploadVideo, updatePrivacy, getVideoStatus };

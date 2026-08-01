@@ -17,15 +17,23 @@ async function resizeIfNeeded(buffer) {
   const tooHeavy = buffer.length > MAX_BYTES;
 
   if (!tooLarge && !tooHeavy) {
-    return { buffer, mimeType: null, resized: false };
+    return { buffer, mimeType: null, resized: false, width: meta.width, height: meta.height, bytes: buffer.length };
   }
 
   const resized = await sharp(buffer)
     .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 85 })
     .toBuffer();
+  const resizedMeta = await sharp(resized).metadata();
 
-  return { buffer: resized, mimeType: 'image/jpeg', resized: true };
+  return {
+    buffer: resized,
+    mimeType: 'image/jpeg',
+    resized: true,
+    width: resizedMeta.width,
+    height: resizedMeta.height,
+    bytes: resized.length,
+  };
 }
 
 // Downloads a remote image, resizes it if needed, and returns a URL

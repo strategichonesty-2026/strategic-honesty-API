@@ -204,3 +204,24 @@ test('PATCH /youtube/videos/:videoId/privacy for an unconnected account returns 
     assert.equal(res.status, 404);
   });
 });
+
+test('GET /youtube/videos/:videoId without an internal token returns 401', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/youtube/videos/abc123`);
+    assert.equal(res.status, 401);
+  });
+});
+
+test('GET /youtube/videos/:videoId without googleUserId returns 400', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/youtube/videos/abc123`, { headers: AUTH_HEADERS });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('GET /youtube/videos/:videoId for an unconnected account returns 404', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/youtube/videos/abc123?googleUserId=no-such-user`, { headers: AUTH_HEADERS });
+    assert.equal(res.status, 404);
+  });
+});

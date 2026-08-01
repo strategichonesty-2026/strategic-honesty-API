@@ -13,6 +13,16 @@ router.get('/channels', internalAuth, async (req, res) => {
   }
 });
 
+router.get('/post/:id', internalAuth, async (req, res) => {
+  try {
+    const post = await bufferPostService.getPostStatus(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    res.json({ post });
+  } catch (err) {
+    res.status(502).json({ error: 'Failed to fetch Buffer post status', details: err.message });
+  }
+});
+
 router.post('/post', internalAuth, async (req, res) => {
   const { channelId, text, mediaUrl, mediaType, scheduledAt, service, postType, saveToDraft } = req.body;
 

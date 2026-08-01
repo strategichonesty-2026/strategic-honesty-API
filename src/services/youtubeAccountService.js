@@ -162,6 +162,16 @@ async function setVideoPrivacyForAccount(googleUserId, videoId, privacyStatus) {
   }
 }
 
+async function getVideoStatusForAccount(googleUserId, videoId) {
+  const client = await requireAuthorizedClient(googleUserId);
+
+  try {
+    return await uploader.getVideoStatus(client, videoId);
+  } catch (err) {
+    throw classifyYoutubeError(err);
+  }
+}
+
 module.exports = {
   getConnectUrl,
   handleOAuthCallback,
@@ -170,4 +180,5 @@ module.exports = {
   uploadVideoForAccount,
   uploadVideoFromUrlForAccount,
   setVideoPrivacyForAccount,
+  getVideoStatusForAccount,
 };

@@ -136,6 +136,23 @@ router.post('/upload-from-url', internalAuth, async (req, res) => {
   }
 });
 
+router.get('/videos/:videoId', internalAuth, async (req, res) => {
+  const { googleUserId } = req.query;
+  const { videoId } = req.params;
+
+  if (!googleUserId) return res.status(400).json({ error: 'Missing "googleUserId" query param' });
+
+  try {
+    const video = await youtubeAccountService.getVideoStatusForAccount(googleUserId, videoId);
+    if (!video) return res.status(404).json({ error: 'Video not found' });
+    res.json({ video });
+  } catch (err) {
+    console.error('[youtube] video status lookup failed:', err);
+    const status = err.code === 'ACCOUNT_NOT_CONNECTED' ? 404 : 502;
+    res.status(status).json({ error: 'Failed to fetch video status', details: err.message });
+  }
+});
+
 const VALID_PRIVACY_STATUSES = ['private', 'unlisted', 'public'];
 
 router.patch('/videos/:videoId/privacy', internalAuth, async (req, res) => {
