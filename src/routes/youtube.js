@@ -136,4 +136,25 @@ router.post('/upload-from-url', internalAuth, async (req, res) => {
   }
 });
 
+const VALID_PRIVACY_STATUSES = ['private', 'unlisted', 'public'];
+
+router.patch('/videos/:videoId/privacy', internalAuth, async (req, res) => {
+  const { googleUserId, privacyStatus } = req.body;
+  const { videoId } = req.params;
+
+  if (!googleUserId) return res.status(400).json({ error: 'Missing "googleUserId" field' });
+  if (!VALID_PRIVACY_STATUSES.includes(privacyStatus)) {
+    return res.status(400).json({ error: '"privacyStatus" must be one of: ' + VALID_PRIVACY_STATUSES.join(', ') });
+  }
+
+  try {
+    const video = await youtubeAccountService.setVideoPrivacyForAccount(googleUserId, videoId, privacyStatus);
+    res.json({ video });
+  } catch (err) {
+    console.error('[youtube] privacy update failed:', err);
+    const status = err.code === 'ACCOUNT_NOT_CONNECTED' ? 404 : 502;
+    res.status(status).json({ error: 'Failed to update video privacy', details: err.message });
+  }
+});
+
 module.exports = router;

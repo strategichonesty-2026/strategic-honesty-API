@@ -19,4 +19,18 @@ async function uploadVideo(oauth2Client, { filePath, mimeType, title, descriptio
   return data;
 }
 
-module.exports = { uploadVideo };
+async function updatePrivacy(oauth2Client, videoId, privacyStatus) {
+  const youtube = google.youtube({ auth: oauth2Client, version: 'v3' });
+
+  const { data } = await youtube.videos.update({
+    part: ['status'],
+    requestBody: {
+      id: videoId,
+      status: { privacyStatus },
+    },
+  });
+
+  return data;
+}
+
+module.exports = { uploadVideo, updatePrivacy };

@@ -171,3 +171,36 @@ test('POST /youtube/upload-from-url for an unconnected account returns 404 witho
     assert.equal(res.status, 404);
   });
 });
+
+test('PATCH /youtube/videos/:videoId/privacy without an internal token returns 401', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/youtube/videos/abc123/privacy`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ googleUserId: 'user-123', privacyStatus: 'public' }),
+    });
+    assert.equal(res.status, 401);
+  });
+});
+
+test('PATCH /youtube/videos/:videoId/privacy with an invalid privacyStatus returns 400', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/youtube/videos/abc123/privacy`, {
+      method: 'PATCH',
+      headers: { ...AUTH_HEADERS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ googleUserId: 'user-123', privacyStatus: 'not-a-real-status' }),
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('PATCH /youtube/videos/:videoId/privacy for an unconnected account returns 404', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/youtube/videos/abc123/privacy`, {
+      method: 'PATCH',
+      headers: { ...AUTH_HEADERS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ googleUserId: 'no-such-user', privacyStatus: 'public' }),
+    });
+    assert.equal(res.status, 404);
+  });
+});
