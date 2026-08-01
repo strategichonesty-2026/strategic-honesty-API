@@ -3,9 +3,9 @@ const { google } = require('googleapis');
 
 const YOUTUBE_UPLOAD_SCOPES = [
   'https://www.googleapis.com/auth/youtube.upload',
-  // youtube.upload alone only grants permission to upload — reading the
-  // connected channel's id/title (channels.list) needs read access too.
-  'https://www.googleapis.com/auth/youtube.readonly',
+  // youtube.upload only covers videos.insert — updating an already-uploaded
+  // video (e.g. changing privacyStatus) needs the broader force-ssl scope.
+  'https://www.googleapis.com/auth/youtube.force-ssl',
   'https://www.googleapis.com/auth/userinfo.email',
 ];
 
