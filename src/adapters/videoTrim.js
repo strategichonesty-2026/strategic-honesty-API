@@ -76,11 +76,71 @@ async function trimVideoUrlIfNeeded(videoUrl, maxSeconds, publicBaseUrl) {
   }
 }
 
+function getDimensions(filePath) {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(filePath, (err, data) => {
+      if (err) return reject(err);
+      const videoStream = (data.streams || []).find((s) => s.codec_type === 'video');
+      if (!videoStream) return reject(new Error('No video stream found'));
+      resolve({ width: videoStream.width, height: videoStream.height });
+    });
+  });
+}
+
+// Scales up (never crops/pads) preserving aspect ratio until both dimensions
+// clear the target minimum — one dimension may end up larger than its own
+// minimum, which is fine since platforms only reject below-minimum, never
+// above. Dimensions are rounded up to even numbers, a libx264 requirement.
+function upscaleVideo(inputPath, outputPath, targetWidth, targetHeight) {
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .videoFilters(`scale=${targetWidth}:${targetHeight}`)
+      .videoCodec('libx264')
+      .audioCodec('aac')
+      .on('end', () => resolve(outputPath))
+      .on('error', reject)
+      .save(outputPath);
+  });
+}
+
+async function upscaleToMinimumIfNeeded(filePath, minWidth, minHeight, outputPath) {
+  const { width, height } = await getDimensions(filePath);
+  if (width >= minWidth && height >= minHeight) {
+    return { path: filePath, resized: false, originalWidth: width, originalHeight: height };
+  }
+
+  const scaleFactor = Math.max(minWidth / width, minHeight / height);
+  const targetWidth = Math.ceil((width * scaleFactor) / 2) * 2;
+  const targetHeight = Math.ceil((height * scaleFactor) / 2) * 2;
+  await upscaleVideo(filePath, outputPath, targetWidth, targetHeight);
+  return { path: outputPath, resized: true, originalWidth: width, originalHeight: height, newWidth: targetWidth, newHeight: targetHeight };
+}
+
+// Downloads a remote video, upscales it if either dimension is below the
+// platform's minimum (e.g. Facebook/Instagram Reels reject anything under
+// 540x960 — confirmed via a real rejected post), and returns a URL
+// Buffer/Postiz can fetch. Mirrors trimVideoUrlIfNeeded's shape/cleanup.
+async function resizeVideoUrlIfNeeded(videoUrl, minWidth, minHeight, publicBaseUrl) {
+  const { path: downloadedPath } = await downloadTemp(videoUrl);
+  try {
+    const filename = `${randomUUID()}.mp4`;
+    const outputPath = path.join(mediaTempDir, filename);
+    const result = await upscaleToMinimumIfNeeded(downloadedPath, minWidth, minHeight, outputPath);
+    if (!result.resized) return { url: videoUrl, resized: false };
+    return { url: `${publicBaseUrl}/media/${filename}`, resized: true };
+  } finally {
+    fs.unlink(downloadedPath, () => {});
+  }
+}
+
 module.exports = {
   getDurationSeconds,
   trimVideo,
   trimIfNeeded,
   trimVideoUrlIfNeeded,
+  getDimensions,
+  upscaleToMinimumIfNeeded,
+  resizeVideoUrlIfNeeded,
   TIKTOK_MAX_SECONDS,
   MAX_VIDEO_BYTES,
 };

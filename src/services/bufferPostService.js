@@ -1,7 +1,12 @@
 const { createBufferClient } = require('../adapters/buffer/client');
 const { GET_ORGANIZATIONS, GET_CHANNELS, CREATE_POST, GET_POST, LIST_POSTS } = require('../adapters/buffer/queries');
 const { resizeUrlIfNeeded } = require('../adapters/imageResize');
-const { trimVideoUrlIfNeeded, TIKTOK_MAX_SECONDS } = require('../adapters/videoTrim');
+const { trimVideoUrlIfNeeded, resizeVideoUrlIfNeeded, TIKTOK_MAX_SECONDS } = require('../adapters/videoTrim');
+
+// Facebook/Instagram Reels reject video below this — confirmed via a real
+// rejected post ("Video width must be at least 540px for Facebook Reels.").
+const REELS_MIN_WIDTH = 540;
+const REELS_MIN_HEIGHT = 960;
 
 async function getOrganizationId(client) {
   const data = await client.request(GET_ORGANIZATIONS);
@@ -36,6 +41,8 @@ async function createPost({ channelId, text, mediaUrl, mediaType, scheduledAt, p
       ({ url: finalMediaUrl } = await resizeUrlIfNeeded(mediaUrl, publicBaseUrl));
     } else if (mediaType === 'video' && service === 'tiktok') {
       ({ url: finalMediaUrl } = await trimVideoUrlIfNeeded(mediaUrl, TIKTOK_MAX_SECONDS, publicBaseUrl));
+    } else if (mediaType === 'video' && postType === 'reel') {
+      ({ url: finalMediaUrl } = await resizeVideoUrlIfNeeded(mediaUrl, REELS_MIN_WIDTH, REELS_MIN_HEIGHT, publicBaseUrl));
     }
   }
 
