@@ -6,6 +6,7 @@ const sharp = require('sharp');
 process.env.INTERNAL_SERVICE_TOKEN = process.env.INTERNAL_SERVICE_TOKEN || 'test-internal-token';
 
 const { createApp } = require('../src/app');
+const r2Upload = require('../src/adapters/r2Upload');
 
 const AUTH_HEADERS = { 'X-Internal-Token': process.env.INTERNAL_SERVICE_TOKEN, 'Content-Type': 'application/json' };
 
@@ -89,33 +90,50 @@ test('POST /media/prepare leaves a small image untouched', async () => {
   });
 });
 
-test('POST /media/prepare resizes an oversized image and serves it back via /media/:filename', async () => {
+test('POST /media/prepare resizes an oversized image and uploads the resized copy to R2', async () => {
   const buffer = await sharp({
     create: { width: 3000, height: 3000, channels: 3, background: { r: 0, g: 0, b: 255 } },
   })
     .jpeg()
     .toBuffer();
 
-  await withFixtureServer(buffer, 'image/jpeg', async (fixtureUrl) => {
-    await withServer(async (base) => {
-      const res = await fetch(`${base}/media/prepare`, {
-        method: 'POST',
-        headers: AUTH_HEADERS,
-        body: JSON.stringify({ url: fixtureUrl, kind: 'image' }),
-      });
-      assert.equal(res.status, 200);
-      const body = await res.json();
-      assert.equal(body.changed, true);
-      assert.match(body.url, new RegExp(`^${base}/media/`));
+  // Real R2 credentials/network access aren't available (or wanted) in
+  // tests — stub the upload so the resize logic itself is verified without
+  // hitting real storage. resizeUrlIfNeeded no longer serves media from this
+  // service's own local /media/ route (a local temp file can't survive this
+  // service's own deploys long enough for a post scheduled hours/days out —
+  // this was silently producing dead links in Buffer).
+  let uploadedBuffer = null;
+  let uploadedContentType = null;
+  const originalUpload = r2Upload.uploadBufferToR2;
+  r2Upload.uploadBufferToR2 = async (buf, extension, contentType) => {
+    uploadedBuffer = buf;
+    uploadedContentType = contentType;
+    return 'https://pub-fake-bucket.r2.dev/prepared/fake-resized.jpg';
+  };
 
-      const servedRes = await fetch(body.url);
-      assert.equal(servedRes.status, 200);
-      const servedBuffer = Buffer.from(await servedRes.arrayBuffer());
-      const meta = await sharp(servedBuffer).metadata();
-      assert.ok(meta.width <= 2048);
-      assert.ok(meta.height <= 2048);
+  try {
+    await withFixtureServer(buffer, 'image/jpeg', async (fixtureUrl) => {
+      await withServer(async (base) => {
+        const res = await fetch(`${base}/media/prepare`, {
+          method: 'POST',
+          headers: AUTH_HEADERS,
+          body: JSON.stringify({ url: fixtureUrl, kind: 'image' }),
+        });
+        assert.equal(res.status, 200);
+        const body = await res.json();
+        assert.equal(body.changed, true);
+        assert.equal(body.url, 'https://pub-fake-bucket.r2.dev/prepared/fake-resized.jpg');
+        assert.equal(uploadedContentType, 'image/jpeg');
+
+        const meta = await sharp(uploadedBuffer).metadata();
+        assert.ok(meta.width <= 2048);
+        assert.ok(meta.height <= 2048);
+      });
     });
-  });
+  } finally {
+    r2Upload.uploadBufferToR2 = originalUpload;
+  }
 });
 
 test('POST /media/prepare leaves a non-tiktok video untouched', async () => {

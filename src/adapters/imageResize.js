@@ -1,6 +1,6 @@
 const axios = require('axios');
 const sharp = require('sharp');
-const { storeTempMedia, tempMediaUrl } = require('./mediaTempStore');
+const r2Upload = require('./r2Upload'); // called via the module object (not destructured) so tests can stub uploadBufferToR2
 
 // Meta (Facebook/Instagram/Threads) rejects images with very large
 // dimensions or file sizes ("Meta is having trouble with this post...large
@@ -38,14 +38,16 @@ async function resizeIfNeeded(buffer) {
 
 // Downloads a remote image, resizes it if needed, and returns a URL
 // Buffer/Postiz can fetch — either the original (untouched) or a freshly
-// resized copy served from our own temp media store.
-async function resizeUrlIfNeeded(imageUrl, publicBaseUrl) {
+// resized copy uploaded to permanent R2 storage (not a local temp file,
+// which can't survive this service's own deploys long enough for a post
+// scheduled hours/days/weeks out).
+async function resizeUrlIfNeeded(imageUrl, publicBaseUrl) { // eslint-disable-line no-unused-vars -- publicBaseUrl kept for call-site compatibility
   const { data } = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 15000 });
   const { buffer, resized } = await resizeIfNeeded(Buffer.from(data));
   if (!resized) return { url: imageUrl, resized: false };
 
-  const filename = storeTempMedia(buffer, 'jpg');
-  return { url: tempMediaUrl(publicBaseUrl, filename), resized: true };
+  const url = await r2Upload.uploadBufferToR2(buffer, 'jpg', 'image/jpeg');
+  return { url, resized: true };
 }
 
 module.exports = { resizeIfNeeded, resizeUrlIfNeeded, MAX_DIMENSION, MAX_BYTES };

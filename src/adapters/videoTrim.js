@@ -1,9 +1,10 @@
 const fs = require('fs');
+const os = require('os');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 const ffprobePath = require('ffprobe-static').path;
 const { downloadTemp } = require('./youtube/downloadTemp');
-const { mediaTempDir } = require('./mediaTempStore');
+const r2Upload = require('./r2Upload'); // called via the module object (not destructured) so tests can stub uploadBufferToR2
 const path = require('path');
 const { randomUUID } = require('crypto');
 
@@ -56,23 +57,27 @@ async function trimIfNeeded(filePath, maxSeconds, tempOutputPath) {
 
 // Downloads a remote video, trims it to maxSeconds if it's longer, and
 // returns a URL Buffer/Postiz can fetch — either the original (untouched)
-// or a freshly-trimmed copy served from our own temp media store. Always
-// cleans up the downloaded original; the trimmed copy (if any) cleans
-// itself up later via mediaTempStore's own scheduled deletion.
-async function trimVideoUrlIfNeeded(videoUrl, maxSeconds, publicBaseUrl) {
+// or a freshly-trimmed copy uploaded to permanent R2 storage. A local temp
+// file can't survive this service's own deploys long enough for a post
+// scheduled hours/days/weeks out (confirmed: this was producing dead links
+// in Buffer for exactly that reason). Cleans up both the downloaded
+// original and the local trimmed output once uploaded.
+async function trimVideoUrlIfNeeded(videoUrl, maxSeconds, publicBaseUrl) { // eslint-disable-line no-unused-vars -- publicBaseUrl kept for call-site compatibility
   const { path: downloadedPath } = await downloadTemp(videoUrl);
+  let outputPath = null;
   try {
     const duration = await getDurationSeconds(downloadedPath);
     if (duration <= maxSeconds) {
       return { url: videoUrl, trimmed: false, originalDuration: duration };
     }
 
-    const filename = `${randomUUID()}.mp4`;
-    const outputPath = path.join(mediaTempDir, filename);
+    outputPath = path.join(os.tmpdir(), `${randomUUID()}.mp4`);
     await trimVideo(downloadedPath, outputPath, maxSeconds);
-    return { url: `${publicBaseUrl}/media/${filename}`, trimmed: true, originalDuration: duration };
+    const url = await r2Upload.uploadBufferToR2(fs.readFileSync(outputPath), 'mp4', 'video/mp4');
+    return { url, trimmed: true, originalDuration: duration };
   } finally {
     fs.unlink(downloadedPath, () => {});
+    if (outputPath) fs.unlink(outputPath, () => {});
   }
 }
 
@@ -119,17 +124,19 @@ async function upscaleToMinimumIfNeeded(filePath, minWidth, minHeight, outputPat
 // Downloads a remote video, upscales it if either dimension is below the
 // platform's minimum (e.g. Facebook/Instagram Reels reject anything under
 // 540x960 — confirmed via a real rejected post), and returns a URL
-// Buffer/Postiz can fetch. Mirrors trimVideoUrlIfNeeded's shape/cleanup.
-async function resizeVideoUrlIfNeeded(videoUrl, minWidth, minHeight, publicBaseUrl) {
+// Buffer/Postiz can fetch. Mirrors trimVideoUrlIfNeeded's shape/cleanup —
+// uploads to permanent R2 storage rather than a local temp file.
+async function resizeVideoUrlIfNeeded(videoUrl, minWidth, minHeight, publicBaseUrl) { // eslint-disable-line no-unused-vars -- publicBaseUrl kept for call-site compatibility
   const { path: downloadedPath } = await downloadTemp(videoUrl);
+  const outputPath = path.join(os.tmpdir(), `${randomUUID()}.mp4`);
   try {
-    const filename = `${randomUUID()}.mp4`;
-    const outputPath = path.join(mediaTempDir, filename);
     const result = await upscaleToMinimumIfNeeded(downloadedPath, minWidth, minHeight, outputPath);
     if (!result.resized) return { url: videoUrl, resized: false };
-    return { url: `${publicBaseUrl}/media/${filename}`, resized: true };
+    const url = await r2Upload.uploadBufferToR2(fs.readFileSync(outputPath), 'mp4', 'video/mp4');
+    return { url, resized: true };
   } finally {
     fs.unlink(downloadedPath, () => {});
+    fs.unlink(outputPath, () => {});
   }
 }
 
